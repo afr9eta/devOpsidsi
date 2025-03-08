@@ -1,31 +1,18 @@
-# Maven Pipeline for Java with Azure DevOps
-
 trigger:
-  - main  # Pipeline runs on commits to 'main' branch
+  branches:
+    include:
+      - main  # Branche sur laquelle la pipeline sera déclenchée
 
 pool:
-  vmImage: ubuntu-latest  # Use latest Ubuntu VM
+  name: hkAgent_pool  # L'agent pool que tu as configuré
 
 steps:
-  - task: Maven@3
-    inputs:
-      mavenPomFile: 'pom.xml'
-      mavenOptions: '-Xmx3072m'  # Set maximum heap size
-      javaHomeOption: 'JDKVersion'
-      jdkVersionOption: '1.11'
-      jdkArchitectureOption: 'x64'
-      goals: 'clean package'  # Ensures a fresh build
+- task: UseDotNet@2
+  inputs:
+    packageType: 'sdk'
+    version: '6.x'
+    installationPath: $(Agent.ToolsDirectory)/dotnet
 
-  - task: PublishTestResults@2
-    displayName: 'Publish JUnit Test Results'
-    inputs:
-      testResultsFiles: '**/target/surefire-reports/TEST-*.xml'
-      mergeTestResults: true
-      testRunTitle: 'JUnit Test Results'
-    condition: succeededOrFailed()  # Always publish test results, even if tests fail
-
-  - task: PublishBuildArtifacts@1
-    displayName: 'Publish Build Artifacts'
-    inputs:
-      pathToPublish: '$(Build.ArtifactStagingDirectory)'
-      artifactName: 'drop'
+- script: |
+    echo Hello, World!
+  displayName: 'Run a one-line script'
