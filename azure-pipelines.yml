@@ -1,13 +1,13 @@
 trigger:
   branches:
     include:
-      - main  # Déclenchement automatique sur la branche main
+      - main  # Runs pipeline on push to main branch
 
 pool:
-  name: hkAgent_pool  # L'agent pool personnalisé
+  name: hkAgent_pool  # Make sure this agent exists in DevOps
 
 stages:
-  # ------------- STAGE CI (Build) -------------
+  # ------------- Stage 1: Build (CI) -------------
   - stage: Build
     displayName: 'Build Application'
     jobs:
@@ -23,19 +23,39 @@ stages:
           - script: |
               dotnet restore
               dotnet publish -c Release -o $(Build.ArtifactStagingDirectory)
-            displayName: 'Dotnet Restore, Build, Publish'
+            displayName: 'Build and Publish'
 
           - task: PublishBuildArtifacts@1
             inputs:
               PathtoPublish: '$(Build.ArtifactStagingDirectory)'
               ArtifactName: 'drop'
               publishLocation: 'Container'
-            displayName: 'Publier artefacts du build'
+            displayName: 'Publish Build Artifacts'
 
-  # ------------- STAGE CD (Déploiement en Production) -------------
+  # ------------- Stage 2: Deploy to Staging -------------
+  - stage: Deploy_Staging
+    displayName: 'Deploy to Staging'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployStaging
+        displayName: 'Deploy to Staging'
+        environment: staging
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebApp@1
+                  inputs:
+                    azureSubscription: 'Your_Azure_Service_Connection'
+                    appType: 'webApp'
+                    appName: 'Your_Staging_App_Name'
+                    package: '$(Pipeline.Workspace)/drop/*.zip'
+
+  # ------------- Stage 3: Deploy to Production -------------
   - stage: Deploy_Production
-    displayName: 'Déploiement en Production'
-    dependsOn: Build  # Doit dépendre d'un stage existant
+    displayName: 'Deploy to Production'
+    dependsOn: Deploy_Staging
     condition: succeeded()
     jobs:
       - deployment: DeployProduction
@@ -47,7 +67,7 @@ stages:
               steps:
                 - task: AzureWebApp@1
                   inputs:
-                    azureSubscription: 'Nom exact de ta connexion Azure'
-                    appType: 'webApp'  # Type d'application
-                    appName: 'Nom_App_Service_Production'  # Remplace avec le nom réel de ton App Service
+                    azureSubscription: 'Your_Azure_Service_Connection'
+                    appType: 'webApp'
+                    appName: 'Your_Production_App_Name'
                     package: '$(Pipeline.Workspace)/drop/*.zip'
